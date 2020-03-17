@@ -16,7 +16,10 @@ import android.view.View;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import java.util.List;
+
 import br.com.echitey.android.todolistapp.database.AppDatabase;
+import br.com.echitey.android.todolistapp.database.TaskEntry;
 
 import static android.widget.GridLayout.VERTICAL;
 
@@ -98,7 +101,19 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
         super.onResume();
         // COMPLETED (3) Call the adapter's setTasks method using the result
         // of the loadAllTasks method from the taskDao
-        mAdapter.setTasks(mDb.taskDao().loadAllTasks());
+        AppExecutors.getInstance().diskIO().execute(new Runnable() {
+            @Override
+            public void run() {
+                final List<TaskEntry> taskEntries = mDb.taskDao().loadAllTasks();
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mAdapter.setTasks(taskEntries);
+                    }
+                });
+            }
+        });
     }
 
     @Override
