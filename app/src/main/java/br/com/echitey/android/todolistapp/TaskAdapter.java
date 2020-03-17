@@ -11,24 +11,36 @@ import android.widget.TextView;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.text.SimpleDateFormat;
+import java.util.List;
+import java.util.Locale;
+
 import br.com.echitey.android.todolistapp.data.TaskContract;
+import br.com.echitey.android.todolistapp.database.TaskEntry;
 
 public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder> {
 
-    // Class variables for the Cursor that holds task data and the Context
-    private Cursor mCursor;
-    private Context mContext;
+    // Constant for date format
+    private static final String DATE_FORMAT = "dd/MM/yyy";
 
+    // Member variable to handle item clicks
+    final private ItemClickListener mItemClickListener;
+    // Class variables for the List that holds task data and the Context
+    private List<TaskEntry> mTaskEntries;
+    private Context mContext;
+    // Date formatter
+    private SimpleDateFormat dateFormat = new SimpleDateFormat(DATE_FORMAT, Locale.getDefault());
 
     /**
-     * Constructor for the CustomCursorAdapter that initializes the Context.
+     * Constructor for the TaskAdapter that initializes the Context.
      *
-     * @param mContext the current Context
+     * @param context  the current Context
+     * @param listener the ItemClickListener
      */
-    public TaskAdapter(Context mContext) {
-        this.mContext = mContext;
+    public TaskAdapter(Context context, ItemClickListener listener) {
+        mContext = context;
+        mItemClickListener = listener;
     }
-
 
     /**
      * Called when ViewHolders are created to fill a RecyclerView.
@@ -37,7 +49,6 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
      */
     @Override
     public TaskViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-
         // Inflate the task_layout to a view
         View view = LayoutInflater.from(mContext)
                 .inflate(R.layout.task_layout, parent, false);
@@ -45,31 +56,23 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         return new TaskViewHolder(view);
     }
 
-
     /**
      * Called by the RecyclerView to display data at a specified position in the Cursor.
      *
-     * @param holder The ViewHolder to bind Cursor data to
+     * @param holder   The ViewHolder to bind Cursor data to
      * @param position The position of the data in the Cursor
      */
     @Override
     public void onBindViewHolder(TaskViewHolder holder, int position) {
-
-        // Indices for the _id, description, and priority columns
-        int idIndex = mCursor.getColumnIndex(TaskContract.TaskEntry._ID);
-        int descriptionIndex = mCursor.getColumnIndex(TaskContract.TaskEntry.COLUMN_DESCRIPTION);
-        int priorityIndex = mCursor.getColumnIndex(TaskContract.TaskEntry.COLUMN_PRIORITY);
-
-        mCursor.moveToPosition(position); // get to the right location in the cursor
-
         // Determine the values of the wanted data
-        final int id = mCursor.getInt(idIndex);
-        String description = mCursor.getString(descriptionIndex);
-        int priority = mCursor.getInt(priorityIndex);
+        TaskEntry taskEntry = mTaskEntries.get(position);
+        String description = taskEntry.getDescription();
+        int priority = taskEntry.getPriority();
+        String updatedAt = dateFormat.format(taskEntry.getUpdatedAt());
 
         //Set values
-        holder.itemView.setTag(id);
         holder.taskDescriptionView.setText(description);
+        holder.updatedAtView.setText(updatedAt);
 
         // Programmatically set the text and color for the priority TextView
         String priorityString = "" + priority; // converts int to String
@@ -79,9 +82,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         // Get the appropriate background color based on the priority
         int priorityColor = getPriorityColor(priority);
         priorityCircle.setColor(priorityColor);
-
     }
-
 
     /*
     Helper method for selecting the correct priority circle color.
@@ -90,56 +91,52 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
     private int getPriorityColor(int priority) {
         int priorityColor = 0;
 
-        switch(priority) {
-            case 1: priorityColor = ContextCompat.getColor(mContext, R.color.materialRed);
+        switch (priority) {
+            case 1:
+                priorityColor = ContextCompat.getColor(mContext, R.color.materialRed);
                 break;
-            case 2: priorityColor = ContextCompat.getColor(mContext, R.color.materialOrange);
+            case 2:
+                priorityColor = ContextCompat.getColor(mContext, R.color.materialOrange);
                 break;
-            case 3: priorityColor = ContextCompat.getColor(mContext, R.color.materialYellow);
+            case 3:
+                priorityColor = ContextCompat.getColor(mContext, R.color.materialYellow);
                 break;
-            default: break;
+            default:
+                break;
         }
         return priorityColor;
     }
-
 
     /**
      * Returns the number of items to display.
      */
     @Override
     public int getItemCount() {
-        if (mCursor == null) {
+        if (mTaskEntries == null) {
             return 0;
         }
-        return mCursor.getCount();
+        return mTaskEntries.size();
     }
-
 
     /**
-     * When data changes and a re-query occurs, this function swaps the old Cursor
-     * with a newly updated Cursor (Cursor c) that is passed in.
+     * When data changes, this method updates the list of taskEntries
+     * and notifies the adapter to use the new values on it
      */
-    public Cursor swapCursor(Cursor c) {
-        // check if this cursor is the same as the previous cursor (mCursor)
-        if (mCursor == c) {
-            return null; // bc nothing has changed
-        }
-        Cursor temp = mCursor;
-        this.mCursor = c; // new cursor value assigned
-
-        //check if this is a valid cursor, then update the cursor
-        if (c != null) {
-            this.notifyDataSetChanged();
-        }
-        return temp;
+    public void setTasks(List<TaskEntry> taskEntries) {
+        mTaskEntries = taskEntries;
+        notifyDataSetChanged();
     }
 
+    public interface ItemClickListener {
+        void onItemClickListener(int itemId);
+    }
 
     // Inner class for creating ViewHolders
-    class TaskViewHolder extends RecyclerView.ViewHolder {
+    class TaskViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
 
         // Class variables for the task description and priority TextViews
         TextView taskDescriptionView;
+        TextView updatedAtView;
         TextView priorityView;
 
         /**
@@ -150,8 +147,16 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         public TaskViewHolder(View itemView) {
             super(itemView);
 
-            taskDescriptionView = (TextView) itemView.findViewById(R.id.taskDescription);
-            priorityView = (TextView) itemView.findViewById(R.id.priorityTextView);
+            taskDescriptionView = itemView.findViewById(R.id.taskDescription);
+            updatedAtView = itemView.findViewById(R.id.taskUpdatedAt);
+            priorityView = itemView.findViewById(R.id.priorityTextView);
+            itemView.setOnClickListener(this);
+        }
+
+        @Override
+        public void onClick(View view) {
+            int elementId = mTaskEntries.get(getAdapterPosition()).getId();
+            mItemClickListener.onItemClickListener(elementId);
         }
     }
 }

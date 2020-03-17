@@ -4,6 +4,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.loader.app.LoaderManager;
 import androidx.loader.content.AsyncTaskLoader;
 import androidx.loader.content.Loader;
+import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -15,18 +16,20 @@ import android.view.View;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
-public class MainActivity extends AppCompatActivity implements
-        LoaderManager.LoaderCallbacks<Cursor> {
+import br.com.echitey.android.todolistapp.database.AppDatabase;
 
+import static android.widget.GridLayout.VERTICAL;
 
-    // Constants for logging and referring to a unique loader
+public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemClickListener {
+
+    // Constant for logging
     private static final String TAG = MainActivity.class.getSimpleName();
-    private static final int TASK_LOADER_ID = 0;
-
     // Member variables for the adapter and RecyclerView
+    private RecyclerView mRecyclerView;
     private TaskAdapter mAdapter;
-    RecyclerView mRecyclerView;
 
+    // COMPLETED (1) Create AppDatabase member variable for the Database
+    private AppDatabase mDb;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,15 +37,18 @@ public class MainActivity extends AppCompatActivity implements
         setContentView(R.layout.activity_main);
 
         // Set the RecyclerView to its corresponding view
-        mRecyclerView = (RecyclerView) findViewById(R.id.recyclerViewTasks);
+        mRecyclerView = findViewById(R.id.recyclerViewTasks);
 
         // Set the layout for the RecyclerView to be a linear layout, which measures and
         // positions items within a RecyclerView into a linear list
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         // Initialize the adapter and attach it to the RecyclerView
-        mAdapter = new TaskAdapter(this);
+        mAdapter = new TaskAdapter(this, this);
         mRecyclerView.setAdapter(mAdapter);
+
+        DividerItemDecoration decoration = new DividerItemDecoration(getApplicationContext(), VERTICAL);
+        mRecyclerView.addItemDecoration(decoration);
 
         /*
          Add a touch helper to the RecyclerView to recognize when a user swipes to delete an item.
@@ -67,7 +73,7 @@ public class MainActivity extends AppCompatActivity implements
          Attach an OnClickListener to it, so that when it's clicked, a new intent will be created
          to launch the AddTaskActivity.
          */
-        FloatingActionButton fabButton = (FloatingActionButton) findViewById(R.id.fab);
+        FloatingActionButton fabButton = findViewById(R.id.fab);
 
         fabButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -78,93 +84,25 @@ public class MainActivity extends AppCompatActivity implements
             }
         });
 
-        /*
-         Ensure a loader is initialized and active. If the loader doesn't already exist, one is
-         created, otherwise the last created loader is re-used.
-         */
-        LoaderManager.getInstance(this).initLoader(TASK_LOADER_ID, null, this);
+        // COMPLETED (2) Initialize member variable for the data base
+        mDb = AppDatabase.getInstance(getApplicationContext());
     }
-
 
     /**
      * This method is called after this activity has been paused or restarted.
      * Often, this is after new data has been inserted through an AddTaskActivity,
-     * so this restarts the loader to re-query the underlying data for any changes.
+     * so this re-queries the database data for any changes.
      */
     @Override
     protected void onResume() {
         super.onResume();
-
-        // re-queries for all tasks
-        getSupportLoaderManager().restartLoader(TASK_LOADER_ID, null, this);
+        // COMPLETED (3) Call the adapter's setTasks method using the result
+        // of the loadAllTasks method from the taskDao
+        mAdapter.setTasks(mDb.taskDao().loadAllTasks());
     }
 
-
-    /**
-     * Instantiates and returns a new AsyncTaskLoader with the given ID.
-     * This loader will return task data as a Cursor or null if an error occurs.
-     *
-     * Implements the required callbacks to take care of loading data at all stages of loading.
-     */
     @Override
-    public Loader<Cursor> onCreateLoader(int id, final Bundle loaderArgs) {
-
-        return new AsyncTaskLoader<Cursor>(this) {
-
-            // Initialize a Cursor, this will hold all the task data
-            Cursor mTaskData = null;
-
-            // onStartLoading() is called when a loader first starts loading data
-            @Override
-            protected void onStartLoading() {
-                if (mTaskData != null) {
-                    // Delivers any previously loaded data immediately
-                    deliverResult(mTaskData);
-                } else {
-                    // Force a new load
-                    forceLoad();
-                }
-            }
-
-            // loadInBackground() performs asynchronous loading of data
-            @Override
-            public Cursor loadInBackground() {
-                // Will implement to load data
-                return null;
-            }
-
-            // deliverResult sends the result of the load, a Cursor, to the registered listener
-            public void deliverResult(Cursor data) {
-                mTaskData = data;
-                super.deliverResult(data);
-            }
-        };
-
-    }
-
-
-    /**
-     * Called when a previously created loader has finished its load.
-     *
-     * @param loader The Loader that has finished.
-     * @param data The data generated by the Loader.
-     */
-    @Override
-    public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
-        // Update the data that the adapter uses to create ViewHolders
-        mAdapter.swapCursor(data);
-    }
-
-
-    /**
-     * Called when a previously created loader is being reset, and thus
-     * making its data unavailable.
-     * onLoaderReset removes any references this activity had to the loader's data.
-     *
-     * @param loader The Loader that is being reset.
-     */
-    @Override
-    public void onLoaderReset(Loader<Cursor> loader) {
-        mAdapter.swapCursor(null);
+    public void onItemClickListener(int itemId) {
+        // Launch AddTaskActivity adding the itemId as an extra in the intent
     }
 }
