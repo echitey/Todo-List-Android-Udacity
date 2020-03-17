@@ -1,6 +1,8 @@
 package br.com.echitey.android.todolistapp;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 import androidx.loader.app.LoaderManager;
 import androidx.loader.content.AsyncTaskLoader;
 import androidx.loader.content.Loader;
@@ -75,7 +77,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
                         List<TaskEntry> taskEntries = mAdapter.getTasks();
                         mDb.taskDao().deleteTask(taskEntries.get(position));
 
-                        retreiveTaks();
+                        //retreiveTaks();
                     }
                 });
             }
@@ -99,35 +101,21 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
 
         // COMPLETED (2) Initialize member variable for the data base
         mDb = AppDatabase.getInstance(getApplicationContext());
-    }
 
-    /**
-     * This method is called after this activity has been paused or restarted.
-     * Often, this is after new data has been inserted through an AddTaskActivity,
-     * so this re-queries the database data for any changes.
-     */
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // COMPLETED (3) Call the adapter's setTasks method using the result
-        // of the loadAllTasks method from the taskDao
         retreiveTaks();
     }
 
-    private void retreiveTaks(){
-        AppExecutors.getInstance().diskIO().execute(new Runnable() {
-            @Override
-            public void run() {
-                final List<TaskEntry> taskEntries = mDb.taskDao().loadAllTasks();
 
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        mAdapter.setTasks(taskEntries);
-                    }
-                });
+    private void retreiveTaks(){
+        final LiveData<List<TaskEntry>> taskEntries = mDb.taskDao().loadAllTasks();
+
+        taskEntries.observe(this, new Observer<List<TaskEntry>>() {
+            @Override
+            public void onChanged(List<TaskEntry> taskEntries) {
+                mAdapter.setTasks(taskEntries);
             }
         });
+
     }
 
     @Override
