@@ -3,6 +3,7 @@ package br.com.echitey.android.todolistapp;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.loader.app.LoaderManager;
 import androidx.loader.content.AsyncTaskLoader;
 import androidx.loader.content.Loader;
@@ -14,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -102,20 +104,20 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
         // COMPLETED (2) Initialize member variable for the data base
         mDb = AppDatabase.getInstance(getApplicationContext());
 
-        retreiveTaks();
+        setUpViewModel();
     }
 
 
-    private void retreiveTaks(){
-        final LiveData<List<TaskEntry>> taskEntries = mDb.taskDao().loadAllTasks();
+    private void setUpViewModel(){
 
-        taskEntries.observe(this, new Observer<List<TaskEntry>>() {
+        MainViewModel viewModel = new ViewModelProvider(this).get(MainViewModel.class);
+        viewModel.getTasks().observe(this, new Observer<List<TaskEntry>>() {
             @Override
             public void onChanged(List<TaskEntry> taskEntries) {
+                Log.d(TAG, "Updating List from LiveData");
                 mAdapter.setTasks(taskEntries);
             }
         });
-
     }
 
     @Override

@@ -15,7 +15,6 @@ import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Locale;
 
-import br.com.echitey.android.todolistapp.data.TaskContract;
 import br.com.echitey.android.todolistapp.database.TaskEntry;
 
 public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder> {
